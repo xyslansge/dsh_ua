@@ -2,3 +2,4 @@
 .plan/
 node_modules/
 lib/
+*.tgz
