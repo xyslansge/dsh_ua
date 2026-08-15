@@ -1,2 +1,4 @@
 .ref/
 .plan/
+node_modules/
+lib/

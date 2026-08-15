@@ -1,0 +1,8 @@
+# dsh-ua bundle patch: insert the UA override plugin into the profile tree.
+#
+# The plugin registers the `dsh-ua` settings namespace (per-provider
+# User-Agent overrides) and wraps the global fetch to rewrite the
+# `user-agent` request header for configured providers.
+- insert:
+    - id: dsh-ua
+      name: 'dsh-ua'
