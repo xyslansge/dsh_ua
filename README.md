@@ -7,74 +7,68 @@
 - 配置写在 dsh 的设置文件里，改完热生效
 - 没配置的 provider 保持 dsh 原来的 UA，完全不受影响
 
-## 准备
+## 它解决什么问题
 
-安装前请确认:
-
-1. **Node.js 已安装**(用 `node --version` 能看到版本号)
-2. **dsh 已经能正常运行**(你能用 `npx @deepseek-ai/dsh web` 打开网页界面)
-3. 你知道自己的 dsh 主目录。一般在 `C:\Users\<你的用户名>\.dsh`，下文用 `$DSH_HOME` 指代它。
-
-## 安装
-
-### 1. 构建插件
-
-在本项目目录执行:
+dsh 发给模型服务器的请求里，User-Agent 是硬编码的：
 
 ```
-npm install
-npm run build
+deepseek-harness/<版本号> (+https://github.com/deepseek-ai/deepseek-harness)
 ```
 
-构建成功后项目里会出现 `lib` 文件夹（插件代码），以及配套的 `package.json`、`cordis.patch.yml`。
+有些网关不接受这个 UA。例如 `opencode.ai/zen` 只认识别成 opencode 客户端的 UA，
+遇到 dsh 的 UA 会直接返回 **HTTP 429**。这个插件就是让你能按 provider 指定 UA，
+让网关认出来。
 
-### 2. 部署到 dsh 外部插件目录
+---
 
-dsh 留了一个专门放外部插件的目录（闭包目录）：
+## 安装（从零开始）
+
+### 第 0 步：确认前提
+
+1. 已安装 **Node.js**（`node --version` 有输出）
+2. 已安装 **pnpm**（`pnpm --version` 有输出）—— dsh 的官方安装命令需要用到它
+3. dsh 能正常运行（你能用 `npx @deepseek-ai/dsh web` 打开网页）
+   - 如果还没装过 dsh，第一次运行上面的命令会自动下载
+4. 确认 dsh 主目录（下文用 `$DSH_HOME` 表示）：
+   - 默认是 `C:\Users\<你的用户名>\.dsh`
+
+### 第 1 步：用官方命令从 git 安装
+
+在任意目录执行（把仓库地址换成维护者提供的那一个）：
 
 ```
-$DSH_HOME\profiles\node_modules
+npx @deepseek-ai/dsh plugin --profile web add git+https://gitee.com/<仓库地址>/dsh-ua.git
 ```
 
-一键部署（构建 + 复制到该目录下的 `dsh-ua\`）：
+第一次执行**会报错，这是正常的**：pnpm 默认禁止运行新装包的构建脚本。
+报错末尾会打印一段 `allowBuilds:` 配置，例如：
 
 ```
-npm run deploy
+allowBuilds:
+  dsh-ua@git+https://gitee.com/<仓库地址>/dsh-ua.git#<一长串commit号>: true
 ```
 
-部署脚本会把 `lib`、`package.json`、`cordis.patch.yml` 复制到
-`$DSH_HOME\profiles\node_modules\dsh-ua\`。
+把它**原样追加**到文件 `$DSH_HOME\profiles\web\pnpm-workspace.yaml` 末尾，保存，
+再执行一次上面的安装命令即可装成功。装好后 `dsh-ua` 会自动加入 `dsh.profile.bundles`
+（profile 的 bundle 列表）。
 
-> 注意：插件目录内**不要放 node_modules**，否则 Node 会沿真实路径解析到项目自己的依赖，产生 Cordis 双实例，导致插件失效。`npm run deploy` 已保证这一点。
+> 说明：
+> - 这个命令会把 git 仓库里的**源码**拉下来并自动执行插件的构建脚本（插件自带了 `prepare`，
+>   无需你手动装 TypeScript）。这是 dsh 官方支持的安装方式，与改 dsh 安装文件无关。
+> - 如果你之前用旧方式（`npm run deploy` 复制法）装过，请删掉旧的 `$DSH_HOME\profiles\node_modules\dsh-ua`
+>   文件夹，避免两份并存。
 
-### 3. 确认 bundle 已注册
-
-插件包 `package.json` 声明了 `dsh.bundle.patch`，表示它是个 bundle。你的 web profile
-（`$DSH_HOME\profiles\web\package.json`）的 `dsh.profile.bundles` 列表里应包含 `dsh-ua`：
-
-```json
-"dsh": {
-  "profile": {
-    "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-ua"]
-  }
-}
-```
-
-### 4. 启动
+### 第 2 步：重启 dsh
 
 ```
 npx @deepseek-ai/dsh web
 ```
 
-## 配置
+第一次安装**必须重启**才能加载插件；之后改动 `settings.yaml` 里的 UA 值是热生效的，不用重启。
 
-打开 dsh 设置文件:
+### 第 3 步：配置 UA
 
-```
-$DSH_HOME\settings.yaml
-```
-
-文件末尾追加一段，配置自定义 User-Agent:
+打开 `$DSH_HOME\settings.yaml`，末尾追加：
 
 ```yaml
 dsh-ua:
@@ -83,35 +77,50 @@ dsh-ua:
       userAgent: your-User-Agent
 ```
 
-- **provider 名**必须和文件里 `llm-pi-ai.providers` 下面的名字一致，插件靠它找到这个 provider 的地址。
-- **userAgent 值**就是最终发给服务器的 User-Agent。
-- 保存后**不用重启**，下一次请求就生效。
-- 想恢复默认 UA，把 `userAgent` 删掉或留空即可。
+- **provider 名**：必须和文件里 `llm-pi-ai.providers` 下面的名字一字不差，
+  插件靠它找到该 provider 的 baseURL 再匹配请求。
+- **userAgent 值**：最终发给服务器的 User-Agent 原文。
+- 保存即生效（无需重启）。
+- 想恢复默认 UA：删掉或留空 `userAgent`。
+
+---
+
+## 验证是否生效
+
+1. 打开 dsh 网页（`http://127.0.0.1:3080`），发一条消息
+2. 按 **F12** → **Network** 标签 → 找到发往你 provider 的请求（如 `chat/completions`）
+3. 看 **Request Headers** 里的 `User-Agent`，应是你配置的值
+
+---
 
 ## 更新插件
 
-改完代码后重复两步:
-
 ```
-npm run build
-npm run deploy
+npx @deepseek-ai/dsh plugin --profile web update dsh-ua
 ```
 
 然后重启 dsh。
 
 ## 卸载
 
-1. 删掉整个文件夹 `$DSH_HOME\profiles\node_modules\dsh-ua`
-2. 把 `$DSH_HOME\profiles\web\package.json` 里 `bundles` 列表中的 `dsh-ua` 移除
-3. 把 `settings.yaml` 里 `dsh-ua:` 那一段删掉
-4. 重启 dsh
+```
+npx @deepseek-ai/dsh plugin --profile web remove dsh-ua
+```
+
+然后把 `settings.yaml` 里的 `dsh-ua:` 段落删掉，重启 dsh。
 
 ## 开发相关
 
 ```
 npm test            # 单元测试
 npm run typecheck   # 类型检查
+npm run build       # 编译到 lib/
 ```
+
+插件带 `prepare` 构建脚本：通过 git 安装时 pnpm 会自动编译，无需手动 `npm run build`。
+
+维护者在自己有 dsh 的机器上做本地快速迭代时，也可以用 `npm run deploy` 把产物复制到
+`$DSH_HOME\profiles\node_modules\dsh-ua\`（旧方式，仅供本人开发用，不适合分发给用户）。
 
 ## 原理
 
