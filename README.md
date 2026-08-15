@@ -1,6 +1,6 @@
 # dsh-ua
 
-`dsh-ua` 是一个 deepseek harness 插件，让用户可以自定义 provider 的请求 User-Agent换成你写的值。
+`dsh-ua` 是一个 deepseek harness 插件，让用户可以自定义 provider 的请求 User-Agent
 
 ## 安装
 
