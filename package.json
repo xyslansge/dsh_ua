@@ -1,7 +1,7 @@
 {
   "name": "dsh-ua",
   "description": "为 dsh 的自定义 provider 配置自定义 User-Agent 的插件:通过 settings.yaml 的 dsh-ua 命名空间按 provider 设置 UA,未配置则保持默认",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
