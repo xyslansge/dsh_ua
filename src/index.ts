@@ -1,14 +1,7 @@
 /**
  * dsh-ua 插件:为 dsh 的自定义 provider 按需重写 User-Agent。
  *
- * 配置落在 settings.yaml 的 dsh-ua 命名空间,按 provider 名组织:
- *
- * ```yaml
- * dsh-ua:
- *   providers:
- *     ocapi:
- *       userAgent: my-custom-ua
- * ```
+ * 配置落在 settings.yaml 的 dsh-ua 命名空间
  *
  * 插件读取 llm-pi-ai / llm-deepseek 命名空间拿到 provider 的 baseURL,
  * 包装全局 fetch,在请求 URL 命中 baseURL 前缀时重写 user-agent 请求头。
